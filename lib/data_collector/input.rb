@@ -12,6 +12,7 @@ require 'active_support/core_ext/hash'
 require 'zlib'
 require 'minitar'
 require 'csv'
+require 'zip'
 
 #require_relative 'ext/xml_utility_node'
 module DataCollector
@@ -20,6 +21,7 @@ module DataCollector
 
     def initialize
       @logger = Logger.new(STDOUT)
+      @logger.level = Logger::INFO
     end
 
     def from_uri(source, options = {})
@@ -47,7 +49,9 @@ module DataCollector
           data
         end
       rescue => e
-        @logger.info(e.message)
+        @logger.warn(e.message)
+        @logger.warn("DATA")
+        @logger.warn(data)
         puts e.backtrace.join("\n")
         nil
       end
@@ -60,20 +64,25 @@ module DataCollector
     end
 
     def from_https(uri, options = {})
-      data = nil
+     
       http = HTTP
 
-      if options.keys.include?(:user) && options.keys.include?(:password)
-        user = options[:user]
-        password = options[:password]
-        http = HTTP.basic_auth(user: user, pass: password)
+      if options.keys.include?(:bearer_token) 
+        @logger.debug  "Set authorization bearer token"
+        bearer_token = options[:bearer_token]
+        http = HTTP.auth("Bearer #{bearer_token}")
       else
-        @logger.warn ("User or Password parameter not found")
+        if options.keys.include?(:user) && options.keys.include?(:password) 
+          @logger.debug "Set Basic_auth"
+          user = options[:user]
+          password = options[:password]
+          http = HTTP.basic_auth(user: user, pass: password)
+        end
       end
 
       http_response = http.get(escape_uri(uri))
-
-      case http_response.code
+      
+      case http_response.code.to_i
       when 200
         @raw = data = http_response.body.to_s
 
@@ -81,7 +90,7 @@ module DataCollector
         #   f.puts data
         # end
 
-        file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.headers)
+        file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.each_header)
 
         unless options.with_indifferent_access.has_key?(:raw) && options.with_indifferent_access[:raw] == true
           case file_type
@@ -105,6 +114,8 @@ module DataCollector
         raise 'Unauthorized'
       when 404
         raise 'Not found'
+      when 429
+        raise 'Too Many Requests'
       else
         raise "Unable to process received status code = #{http_response.code}"
       end
@@ -137,13 +148,12 @@ module DataCollector
           raise "Do not know how to process #{uri.to_s}"
         end
       end
-
       data
     end
 
     def xml_to_hash(data)
       #gsub('&lt;\/', '&lt; /') outherwise wrong XML-parsing (see records lirias1729192 )
-      data = data.gsub /&lt;/, '&lt; /'
+      data = data.gsub(/&lt;/, '&lt; /')
       nori = Nori.new(parser: :nokogiri, strip_namespaces: true, convert_tags_to: lambda { |tag| tag.gsub(/^@/, '_') })
       nori.parse(data)
       #JSON.parse(nori.parse(data).to_json)
@@ -163,14 +173,30 @@ module DataCollector
     end
 
     def file_type_from(headers)
+      headers = headers.map {|k,v| [(k.respond_to?(:downcase) ? k.downcase : k), v] }.to_h
       file_type = 'application/octet-stream'
-      file_type = if headers.include?('Content-Type')
-                    headers['Content-Type'].split(';').first
+      file_type = if headers.key?('content-type')
+                    headers['content-type'].split(';').first
                   else
+                    @logger.debug  "No Header content-type available"
                     MIME::Types.of(filename_from(headers)).first.content_type
                   end
-
       return file_type
+    end
+
+    
+    def unzip_file (file, destination)
+      @logger.info("Unzip #{file}") 
+      Zip::ZipFile.open(file) do |zip_file|
+        
+        @logger.info("Unzip zip_file #{zip_file}") 
+  
+          zip_file.each do |f|
+              f_path = File.join(destination, f.name)
+              FileUtils.mkdir_p(File.dirname(f_path))
+              f.extract(f_path) unless File.exist?(f_path)
+          end
+      end
     end
 
   end

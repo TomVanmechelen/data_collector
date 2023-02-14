@@ -43,8 +43,8 @@ module DataCollector
           rule_payload = rule_payload.reject { |s| s.is_a?(String) }
           rule_payload = '@' if rule_payload.empty?
         end
-      when /json_path:/
-        data = json_path_filter(rule_filter.gsub(/^json_path:/), input_data)
+      when /json_path\:/
+        data = json_path_filter(rule_filter.gsub(/^json_path\:/), input_data)
       else
         data = json_path_filter(rule_filter, input_data)
       end
@@ -64,22 +64,20 @@ module DataCollector
       case payload.class.name
       when 'Proc'
         data = input_data.is_a?(Array) ? input_data : [input_data]
-        output_data = if options.empty?
-                        data.map { |d| payload.call(d) }
-                      else
-                        data.map { |d| payload.call(d, options) }
-                      end
+        if options && options.empty?
+          output_data = data.map { |d| payload.call(d) }
+        else
+          output_data = data.map { |d| payload.call(d, options) }
+        end
       when 'Hash'
         input_data = [input_data] unless input_data.is_a?(Array)
-        if input_data.is_a?(Array)
-          output_data = input_data.map do |m|
-            if payload.key?('suffix')
-              "#{m}#{payload['suffix']}"
-            else
-              payload[m]
-            end
+        output_data = input_data.map do |m|
+          if payload.key?('suffix')
+            "#{m}#{payload['suffix']}"
+          else
+            payload[m]
           end
-        end
+        end if input_data.is_a?(Array)
       when 'Array'
         output_data = input_data
         payload.each do |p|
@@ -90,13 +88,8 @@ module DataCollector
       end
 
       output_data.compact! if output_data.is_a?(Array)
-      output_data.flatten! if output_data.is_a?(Array)
-      if output_data.is_a?(Array) &&
-         output_data.size == 1 &&
-         (output_data.first.is_a?(Array) || output_data.first.is_a?(Hash))
-        output_data = output_data.first
-      end
-
+      output_data.flatten! if output_data.is_a?(Array)# || output_data.is_a?(Hash)
+      output_data = output_data.first if output_data.is_a?(Array) && output_data.size == 1 && (output_data.first.is_a?(Array) || output_data.first.is_a?(Hash))
       output_data
     end
 

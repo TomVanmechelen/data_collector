@@ -93,7 +93,6 @@ module DataCollector
       GC.start
     end
 
-
     def to_s(erb_file = nil)
       data = @data
 
@@ -203,12 +202,35 @@ module DataCollector
       raise "unable to save to file: #{e.message}"
     end
 
+    
+    def to_jsonfile (jsondata, jsonfile_name, records_dir = 'records', file_overwrite = false )
 
-    def to_jsonfile (jsondata, jsonfile)
-      file_name = "records/#{jsonfile}_#{Time.now.to_i}_#{rand(1000)}.json"
-      File.open(file_name, 'wb') do |f|
-        f.puts jsondata.to_json
+      unless jsondata
+        jsondata = @data 
       end
+
+      unless jsonfile_name
+        jsonfile_name = [ jsondata[:id], jsondata[:@id], jsondata["id"], jsondata["@id"]  ].compact.first rescue 'unknown'
+        jsonfile_name.gsub(/[.\/\\:\?\*|"<>]/, '-')
+      end
+
+      unless File.directory?(records_dir)
+        FileUtils.mkdir_p(records_dir)
+      end
+      
+      jsonfile = "#{jsonfile_name}_#{Time.now.to_i}_#{rand(1000)}.json"
+      
+      if file_overwrite
+        jsonfile = "#{jsonfile_name}.json"
+      end
+
+      # @logger.debug(" Write to json file '#{jsonfile}'")
+
+      #jsonfile = "#{records_dir}/#{jsonfile}_#{Time.now.to_i}_#{rand(1000)}.json"
+      File.open("#{records_dir}/#{jsonfile}", 'wb') do |f|
+           f.puts jsondata.to_json.force_encoding('UTF-8').gsub("\u2028", '').gsub("\u2029", '').gsub("\u0085", '') 
+      end
+
     rescue Exception => e
       raise "unable to save to jsonfile: #{e.message}"
     end
