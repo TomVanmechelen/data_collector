@@ -12,6 +12,7 @@ require 'active_support/core_ext/hash'
 require 'zlib'
 require 'minitar'
 require 'csv'
+require 'zip'
 
 #require_relative 'ext/xml_utility_node'
 module DataCollector
@@ -20,6 +21,7 @@ module DataCollector
 
     def initialize
       @logger = Logger.new(STDOUT)
+      @logger.level = Logger::INFO
     end
 
     def from_uri(source, options = {})
@@ -47,7 +49,9 @@ module DataCollector
           data
         end
       rescue => e
-        @logger.info(e.message)
+        @logger.warn(e.message)
+        @logger.warn("DATA")
+        @logger.warn(data)
         puts e.backtrace.join("\n")
         nil
       end
@@ -86,9 +90,7 @@ module DataCollector
         #   f.puts data
         # end
 
-
-        #file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.each_header)
-        file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.headers)
+        file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.each_header)
 
         unless options.with_indifferent_access.has_key?(:raw) && options.with_indifferent_access[:raw] == true
           case file_type
@@ -112,6 +114,8 @@ module DataCollector
         raise 'Unauthorized'
       when 404
         raise 'Not found'
+      when 429
+        raise 'Too Many Requests'
       else
         raise "Unable to process received status code = #{http_response.code}"
       end
@@ -144,7 +148,6 @@ module DataCollector
           raise "Do not know how to process #{uri.to_s}"
         end
       end
-
       data
     end
 
@@ -179,6 +182,21 @@ module DataCollector
                     MIME::Types.of(filename_from(headers)).first.content_type
                   end
       return file_type
+    end
+
+    
+    def unzip_file (file, destination)
+      @logger.info("Unzip #{file}") 
+      Zip::ZipFile.open(file) do |zip_file|
+        
+        @logger.info("Unzip zip_file #{zip_file}") 
+  
+          zip_file.each do |f|
+              f_path = File.join(destination, f.name)
+              FileUtils.mkdir_p(File.dirname(f_path))
+              f.extract(f_path) unless File.exist?(f_path)
+          end
+      end
     end
 
   end
