@@ -64,25 +64,36 @@ module DataCollector
     end
 
     def from_https(uri, options = {})
-     
+      data = nil
+      HTTP.default_options = HTTP::Options.new(features: { logging: { logger: @logger } })
       http = HTTP
 
-      if options.keys.include?(:bearer_token) 
+      #http.use(logging: {logger: @logger})
+
+      if options.key?(:user) && options.key?(:password)
+        @logger.debug "Set Basic_auth"
+        user = options[:user]
+        password = options[:password]
+        http = HTTP.basic_auth(user: user, pass: password)
+      elsif options.key?(:bearer_token)
         @logger.debug  "Set authorization bearer token"
-        bearer_token = options[:bearer_token]
-        http = HTTP.auth("Bearer #{bearer_token}")
-      else
-        if options.keys.include?(:user) && options.keys.include?(:password) 
-          @logger.debug "Set Basic_auth"
-          user = options[:user]
-          password = options[:password]
-          http = HTTP.basic_auth(user: user, pass: password)
-        end
+        bearer = options[:bearer_token]
+        bearer = "Bearer #{bearer}" unless bearer =~ /^Bearer /i
+        http = HTTP.auth(bearer)
       end
 
-      http_response = http.get(escape_uri(uri))
-      
-      case http_response.code.to_i
+      if options.key?(:verify_ssl) && uri.scheme.eql?('https')
+        @logger.warn "Disabling SSL verification. "
+        #shouldn't use this but we all do ...
+        ctx = OpenSSL::SSL::SSLContext.new
+        ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
+
+        http_response = http.get(escape_uri(uri), ssl_context: ctx)
+      else
+        http_response = http.get(escape_uri(uri))
+      end
+
+      case http_response.code
       when 200
         @raw = data = http_response.body.to_s
 

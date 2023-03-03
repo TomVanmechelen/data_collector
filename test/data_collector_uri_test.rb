@@ -1,13 +1,12 @@
 require "test_helper"
 
-
 class DataCollectorUriTest < Minitest::Test
 
   def test_from_https
     url = 'https://www.example.com'
     options = {}
     data = input.from_uri(url, options)
-    
+
     output[:record] = data
     assert_equal({"collection"=>{"record"=>["apple", "banana", "peach"]}},  output[:record])
   end
@@ -16,7 +15,7 @@ class DataCollectorUriTest < Minitest::Test
     url = 'https://www.example.com'
     options = {user: "account", password: "secret"}
     data = input.from_uri(url, options)
-    
+
     output[:record] = data
     assert_equal({"collection"=>{"record"=>["Pumpkins", "Melons", "Eggplant"]}},  output[:record])
   end
@@ -34,7 +33,7 @@ class DataCollectorUriTest < Minitest::Test
     data = input.from_uri('file://./test/fixtures/test.csv')
     data.map{ |m| m[:sequence] *=2; m }
 
-    output[:record] = data 
+    output[:record] = data
     assert_equal('apple,banana,peach', output[:record].map{|m| m[:data]}.join(','))
   end
 end
