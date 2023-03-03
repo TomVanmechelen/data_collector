@@ -88,8 +88,18 @@ module DataCollector
       end
 
       output_data.compact! if output_data.is_a?(Array)
-      output_data.flatten! if output_data.is_a?(Array)# || output_data.is_a?(Hash)
-      output_data = output_data.first if output_data.is_a?(Array) && output_data.size == 1 && (output_data.first.is_a?(Array) || output_data.first.is_a?(Hash))
+      output_data.flatten! if output_data.is_a?(Array)
+      if output_data.is_a?(Array) &&
+         output_data.size == 1 &&
+         (output_data.first.is_a?(Array) || output_data.first.is_a?(Hash))
+        output_data = output_data.first
+      end
+
+      if options.key?('_no_array_with_one_element') && options['_no_array_with_one_element'] &&
+        output_data.is_a?(Array) && output_data.size == 1
+        output_data = output_data.first
+      end
+
       output_data
     end
 
