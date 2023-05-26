@@ -51,37 +51,41 @@ module DataCollector
 
       data = apply_filtered_data_on_payload(data, rule_payload, options)
 
-      output_data << {tag.to_sym => data} unless data.nil? || (data.is_a?(Array) && data.empty?)
+      output_data << { tag.to_sym => data } unless data.nil? || (data.is_a?(Array) && data.empty?)
     rescue StandardError => e
-      puts "error running rule '#{tag}'\n\t#{e.message}"
-      puts e.backtrace.join("\n")
+      # puts "error running rule '#{tag}'\n\t#{e.message}"
+      # puts e.backtrace.join("\n")
+      raise DataCollector::Error, "error running rule '#{tag}'\n\t#{e.message}"
     end
 
     def apply_filtered_data_on_payload(input_data, payload, options = {})
       return nil if input_data.nil?
 
+      normalized_options = options.select { |k, v| k !~ /^_/ }.with_indifferent_access
       output_data = nil
       case payload.class.name
       when 'Proc'
         data = input_data.is_a?(Array) ? input_data : [input_data]
-        if options && options.empty?
-          output_data = data.map { |d| payload.call(d) }
-        else
-          output_data = data.map { |d| payload.call(d, options) }
-        end
+        output_data = if options.empty?
+                        data.map { |d| payload.call(d) }
+                      else
+                        data.map { |d| payload.call(d, options) }
+                      end
       when 'Hash'
         input_data = [input_data] unless input_data.is_a?(Array)
-        output_data = input_data.map do |m|
-          if payload.key?('suffix')
-            "#{m}#{payload['suffix']}"
-          else
-            payload[m]
+        if input_data.is_a?(Array)
+          output_data = input_data.map do |m|
+            if payload.key?('suffix')
+              "#{m}#{payload['suffix']}"
+            else
+              payload[m]
+            end
           end
-        end if input_data.is_a?(Array)
+        end
       when 'Array'
         output_data = input_data
         payload.each do |p|
-          output_data = apply_filtered_data_on_payload(output_data, p, options)
+          output_data = apply_filtered_data_on_payload(output_data, p, normalized_options)
         end
       else
         output_data = [input_data]
@@ -90,17 +94,21 @@ module DataCollector
       output_data.compact! if output_data.is_a?(Array)
       output_data.flatten! if output_data.is_a?(Array)
       if output_data.is_a?(Array) &&
-         output_data.size == 1 &&
-         (output_data.first.is_a?(Array) || output_data.first.is_a?(Hash))
+        output_data.size == 1 &&
+        (output_data.first.is_a?(Array) || output_data.first.is_a?(Hash))
         output_data = output_data.first
       end
 
-      if options.key?('_no_array_with_one_element') && options['_no_array_with_one_element'] &&
+      if options.with_indifferent_access.key?('_no_array_with_one_element') && options.with_indifferent_access['_no_array_with_one_element'] &&
         output_data.is_a?(Array) && output_data.size == 1
         output_data = output_data.first
       end
 
       output_data
+    rescue StandardError => e
+      # puts "error applying filtered data on payload'#{payload.to_json}'\n\t#{e.message}"
+      # puts e.backtrace.join("\n")
+      raise DataCollector::Error, "error applying filtered data on payload'#{payload.to_json}'\n\t#{e.message}"
     end
 
     def json_path_filter(filter, input_data)
@@ -109,6 +117,10 @@ module DataCollector
       return input_data if input_data.is_a?(String)
 
       Core.filter(input_data, filter)
+    rescue StandardError => e
+      puts "error running filter '#{filter}'\n\t#{e.message}"
+      puts e.backtrace.join("\n")
+      raise DataCollector::Error, "error running filter '#{filter}'\n\t#{e.message}"
     end
   end
 end
