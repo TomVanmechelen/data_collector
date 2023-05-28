@@ -114,7 +114,7 @@ module DataCollector
         #   f.puts data
         # end
 
-        file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.each_header)
+        file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.headers)
 
         unless options.with_indifferent_access.has_key?(:raw) && options.with_indifferent_access[:raw] == true
           case file_type
@@ -134,6 +134,8 @@ module DataCollector
             data = xml_to_hash(data)
           end
         end
+      when 206
+        raise 'PARTIAL code 206'
       when 401
         raise 'Unauthorized'
       when 404

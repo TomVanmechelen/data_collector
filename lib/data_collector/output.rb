@@ -126,6 +126,7 @@ module DataCollector
         end
       rescue Exception => e
         @logger.error("unable to print data '#{symbol}'")
+        @logger.error("unable to print data: #{e.message}")
       end
 
       def no_tag_print(data, symbol)
@@ -174,7 +175,7 @@ module DataCollector
       return file_name
     end
 
-    def to_file(erb_file, tar_file_name = nil)
+    def to_file(erb_file, tar_file_name = nil, records_dir="records")
       id = data[:id].first rescue 'unknown'
       result = to_s(erb_file)
 
@@ -183,7 +184,7 @@ module DataCollector
       end
 
       if tar_file_name.nil?
-        file_name = "records/#{id}_#{rand(1000)}.xml"
+        file_name = File.join(records_dir,"#{id}_#{rand(1000)}.xml")
         File.open(file_name, 'wb:UTF-8') do |f|
           f.puts xml_result.to_xml
         end
@@ -191,7 +192,7 @@ module DataCollector
         return file_name
       else
 
-        Minitar::Output.open(Zlib::GzipWriter.new(File.open("records/#{tar_file_name}", 'wb:UTF-8'))) do |f|
+        Minitar::Output.open(Zlib::GzipWriter.new(File.open( File.join(records_dir, tar_file_name) , 'wb:UTF-8'))) do |f|
           xml_data = xml_result.to_xml
           f.tar.add_file_simple("#{id}_#{rand(1000)}.xml", data: xml_data, size: xml_data.size, mtime: Time.now.to_i)
         end
@@ -215,25 +216,41 @@ module DataCollector
         jsonfile_name.gsub(/[.\/\\:\?\*|"<>]/, '-')
       end
 
-      unless File.directory?(records_dir)
-        FileUtils.mkdir_p(records_dir)
-      end
       
-      jsonfile = "#{jsonfile_name}_#{Time.now.to_i}_#{rand(1000)}.json"
-      
+      file_name = File.join(records_dir,"#{jsonfile_name}_#{Time.now.strftime("%Y%m%d%H%M%S")}_#{rand(1000)}.json")
+
       if file_overwrite
-        jsonfile = "#{jsonfile_name}.json"
+        jsonfile_name = "#{jsonfile_name}.json"
       end
 
-      # @logger.debug(" Write to json file '#{jsonfile}'")
+      jsonfile = File.join(records_dir,"#{jsonfile_name}")
 
-      #jsonfile = "#{records_dir}/#{jsonfile}_#{Time.now.to_i}_#{rand(1000)}.json"
-      File.open("#{records_dir}/#{jsonfile}", 'wb') do |f|
-           f.puts jsondata.to_json.force_encoding('UTF-8').gsub("\u2028", '').gsub("\u2029", '').gsub("\u0085", '') 
+      FileUtils.mkdir_p(records_dir) unless File.directory?(records_dir)
+
+      File.open(jsonfile, 'wb') do |f|
+        f.puts jsondata.to_json
       end
-
+      return jsonfile
     rescue Exception => e
       raise "unable to save to jsonfile: #{e.message}"
+    end
+
+    def to_xmlfile (data, xmlfile, records_dir="records", xml_root="record")
+      file_name = File.join(records_dir,"#{xmlfile}_#{Time.now.strftime("%Y%m%d%H%M%S")}_#{rand(1000)}.xml")
+      
+      unless data.is_a?(Hash)
+        raise "Expext a hash as input not an #{data.class}"
+      end
+
+      FileUtils.mkdir_p(records_dir) unless File.directory?(records_dir)      
+      File.open(file_name, 'wb', 0666) do |f|
+        f.puts data.to_xml(:root => xml_root)
+      end
+
+      return file_name
+      # File.chmod(0666, file_name)
+    rescue Exception => e
+      raise "unable to save to xmlfile: #{e.message}"
     end
 
     def flatten()
@@ -246,20 +263,21 @@ module DataCollector
 
     def deep_compact( data )
       if data.is_a?(Hash)
-        #puts " - Hash - #{data}"
+        # puts " - Hash - #{data}"
         data.compact!
         data.each { |k, v| data[k] = deep_compact(v) }
         data.compact!
         data
       elsif data.is_a?(Array)
-        #puts " - Array - #{data}"
-        data.each { |v| deep_compact(v) }
+        # puts " - Array - #{data}"
+        data.map! { |v| deep_compact(v) }
+        data.compact!
         data.empty? ? nil : data
-        #puts " - Array size- #{data.size}"
+        # puts " - Array size- #{data.size}"
         data.size == 1 ? data[0] : data
       elsif data.is_a?(String)
-        #puts " - String - #{data}"
-        data.blank? ? nil : data
+        # puts " - String - #{data}"
+        data.strip.blank? ? nil : data
       else
         data
       end
