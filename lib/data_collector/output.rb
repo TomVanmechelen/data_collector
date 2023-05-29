@@ -207,6 +207,8 @@ module DataCollector
     
     def to_jsonfile (jsondata, jsonfile_name, records_dir = 'records', file_overwrite = false )
 
+      FileUtils.mkdir_p(records_dir) unless File.directory?(records_dir)
+
       unless jsondata
         jsondata = @data 
       end
@@ -216,16 +218,13 @@ module DataCollector
         jsonfile_name.gsub(/[.\/\\:\?\*|"<>]/, '-')
       end
 
-      
-      file_name = File.join(records_dir,"#{jsonfile_name}_#{Time.now.strftime("%Y%m%d%H%M%S")}_#{rand(1000)}.json")
+      jsonfile_name = "#{jsonfile_name}_#{Time.now.strftime("%Y%m%d%H%M%S")}_#{rand(1000)}.json"
 
       if file_overwrite
         jsonfile_name = "#{jsonfile_name}.json"
       end
 
       jsonfile = File.join(records_dir,"#{jsonfile_name}")
-
-      FileUtils.mkdir_p(records_dir) unless File.directory?(records_dir)
 
       File.open(jsonfile, 'wb') do |f|
         f.puts jsondata.to_json
