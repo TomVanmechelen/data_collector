@@ -190,7 +190,7 @@ module DataCollector
       data = data.gsub(/&lt;/, '&lt; /')
       nori = Nori.new(parser: :nokogiri, strip_namespaces: true, convert_tags_to: lambda { |tag| tag.gsub(/^@/, '_') })
       nori.parse(data)
-      #JSON.parse(nori.parse(data).to_json)
+      JSON.parse(nori.parse(data).to_json)
     end
 
     def csv_to_hash(data)
