@@ -49,6 +49,7 @@ module DataCollector
             if v.is_a?(Array) # merge with array
               @data[k] = [@data[k]] + v
             else
+              #@data[k] = [@data[k], v]
               @data[k] = v
             end
           end
@@ -182,7 +183,7 @@ module DataCollector
       raise "unable to save to file: #{e.message}"
     end
 
-    def to_jsonfile (jsondata, jsonfile)
+    def to_jsonfile(jsondata, jsonfile)
       raise '[DEPRECATED] `to_jsonfile` deprecated. Please use `to_uri("file://abc.json", {template: "template.erb", content_type: "application/json"})` instead'
     rescue Exception => e
       raise "unable to save to jsonfile: #{e.message}"
@@ -287,8 +288,8 @@ module DataCollector
     end
 
     def to_https(uri, options)
-
-      raise 'TODO'
+      input = Input.new
+      input.from_uri(uri.to_s, options)
     end
 
     def to_file(uri, options)
