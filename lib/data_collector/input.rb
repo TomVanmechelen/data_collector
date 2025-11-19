@@ -99,6 +99,7 @@ module DataCollector
 
     def from_https(uri, options = {})
       uri = URI.decode_www_form_component("#{uri.to_s}")
+      uri = URI(uri)
       data = nil
       if options.with_indifferent_access.include?(:logging) && options.with_indifferent_access[:logging]
         HTTP.default_options = HTTP::Options.new(features: { logging: { logger: @logger } })
@@ -170,6 +171,14 @@ module DataCollector
         else
           @raw = data = http_response.body.to_s
         end
+
+        if http_response.code == 204
+          @logger.debug "HTTP response 204 No Content"
+          @raw = data = nil
+        end
+        # File.open("#{rand(1000)}.xml", 'wb') do |f|
+        #   f.puts data
+        # end
 
         file_type = options.with_indifferent_access.has_key?(:content_type) ? options.with_indifferent_access[:content_type] : file_type_from(http_response.headers)
 
@@ -264,8 +273,7 @@ module DataCollector
       raise DataCollector::Error, "#{uri.to_s} not found" unless File.exist?("#{absolute_path}")
       unless options.has_key?('raw') && options['raw'] == true
         @raw = data = File.read("#{absolute_path}")
-
-        case options['file_extention']
+        case options['file_extention'].downcase
         when '.jsonld'
           data = JSON.parse(data)
         when '.json'
@@ -379,6 +387,20 @@ module DataCollector
                   end
 
       return file_type
+    end
+
+    def filename_from(headers)
+      filename = if headers.include?('Content-Disposition')
+                    content_disposition_hash = Hash[  headers['Content-Disposition'].delete('\\"').split(';').map { |e| e.strip.split('=', 2) } ]
+                    if content_disposition_hash.include?('filename')
+                      content_disposition_hash["filename"]
+                    else
+                      nil
+                    end
+                  else
+                   nil
+                  end
+        return filename
     end
 
     def normalize_uri(uri)

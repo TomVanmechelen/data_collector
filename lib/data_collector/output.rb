@@ -193,7 +193,7 @@ module DataCollector
 
     def to_uri(destination, options = {})
       destination = CGI.unescapeHTML(destination)
-      @logger.info("writing #{destination}")
+      @logger.debug("writing #{destination}")
       uri = URI(destination)
       begin
         data = nil
