@@ -58,6 +58,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'linkeddata', '~> 3.3'
   spec.add_runtime_dependency 'connection_pool', '~> 2.5'
   spec.add_runtime_dependency 'open-uri-and-write', '~> 0.1.0'
+  spec.add_runtime_dependency 'bigdecimal', '~> 3.1', '>= 3.1.5'
   #spec.add_runtime_dependency 'grpc', '~> 1.61'
 
 
