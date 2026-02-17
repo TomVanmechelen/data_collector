@@ -175,6 +175,7 @@ module DataCollector
         if http_response.code == 204
           @logger.debug "HTTP response 204 No Content"
           @raw = data = nil
+          return data
         end
         # File.open("#{rand(1000)}.xml", 'wb') do |f|
         #   f.puts data

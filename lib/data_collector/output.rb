@@ -193,6 +193,8 @@ module DataCollector
 
     def to_uri(destination, options = {})
       destination = CGI.unescapeHTML(destination)
+      destination = destination.unicode_normalize(:nfkd).encode("ASCII", invalid: :replace, undef: :replace, replace: "")
+
       @logger.debug("writing #{destination}")
       uri = URI(destination)
       begin

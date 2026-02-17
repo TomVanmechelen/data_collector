@@ -85,7 +85,7 @@ module DataCollector
                       else
                         data.map { |d|
                           loop do
-                            payload_result = payload.curry.call(d, normalized_options)
+                            payload_result = payload.curry.call(d, options)
                             break payload_result unless payload_result.is_a?(Proc)
                           end
                         }
@@ -112,7 +112,7 @@ module DataCollector
       when 'Array'
         output_data = input_data
         payload.each do |p|
-          output_data = apply_filtered_data_on_payload(output_data, p, normalized_options)
+          output_data = apply_filtered_data_on_payload(output_data, p, options)
         end
       else
         output_data = [input_data]
@@ -120,6 +120,7 @@ module DataCollector
 
       output_data.compact! if output_data.is_a?(Array)
       output_data.flatten! if output_data.is_a?(Array)
+
       if options.with_indifferent_access.key?('_no_array_with_one_literal') &&
         options.with_indifferent_access['_no_array_with_one_literal'] &&
         output_data.is_a?(Array) &&
