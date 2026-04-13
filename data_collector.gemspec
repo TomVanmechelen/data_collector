@@ -43,6 +43,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'csv'
   spec.add_runtime_dependency 'mutex_m'
   spec.add_runtime_dependency 'http', '~> 5.2'
+  spec.add_runtime_dependency 'http-cookie', '~> 1.0', '>= 1.0.3'
   spec.add_runtime_dependency 'json', '~> 2.10'
   spec.add_runtime_dependency 'jsonpath', '~> 1.1'
   spec.add_runtime_dependency 'mime-types', '~> 3.6'
